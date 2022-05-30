@@ -297,9 +297,40 @@ class CdCommand(Command):
         """
         result = os.path.join(os.getcwd(), self.file_name)
         if not os.path.isdir(result):
-            raise NotADirectoryError()
+            raise NotADirectoryError('given argument is not a valid directory')
         os.chdir(result)
         self.stdout = ''
+        self.stderr = ''
+        self.return_code = SUCCESS_RETURN_CODE
+        return self.return_code
+
+
+class LsCommand(Command):
+    """'ls' command class"""
+
+    def __init__(self, args):
+        """Inits LsCommand
+        Args:
+            args: Optionally contains target directory
+        """
+        super().__init__()
+
+        if len(args) > 1:
+            raise ValueError('Not more than one directory name can be provided as argument for CdCommand')
+        self.file_name = args[0] if len(args) == 1 else os.getcwd()
+
+    def execute(self, inp: str, memory=None):
+        """Outputs current working directory
+        Args:
+            inp: Previous command output, ignored
+            memory: environment variables, ignored
+        Returns:
+            Exit code value
+        """
+        if not os.path.isdir(self.file_name):
+            raise NotADirectoryError('given argument is not a valid directory')
+        dirs = os.listdir(self.file_name)
+        self.stdout = os.linesep.join(dirs)
         self.stderr = ''
         self.return_code = SUCCESS_RETURN_CODE
         return self.return_code

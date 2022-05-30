@@ -14,7 +14,8 @@ class CommandFactory:
             'wc': WcCommand,
             'pwd': PwdCommand,
             'exit': ExitCommand,
-            'cd': CdCommand
+            'cd': CdCommand,
+            'ls': LsCommand
         }
 
     def tokens_to_commands(self, command_name, args) -> Command:

@@ -1,6 +1,7 @@
 import os
 import subprocess
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 SUCCESS_RETURN_CODE = 0
 FAILED_FILE_OPEN_RETURN_CODE = 1
@@ -267,6 +268,38 @@ class PwdCommand(Command):
             Exit code value
         """
         self.stdout = os.path.abspath(os.getcwd())
+        self.stderr = ''
+        self.return_code = SUCCESS_RETURN_CODE
+        return self.return_code
+
+class CdCommand(Command):
+    """'cd' command class"""
+
+    def __init__(self, args):
+        """Inits CdCommand
+        Args:
+            args: Optionally contains target directory
+        """
+        super().__init__()
+
+        if len(args) > 1:
+            raise ValueError('Not more than one directory name can be provided as argument for CdCommand')
+        self.file_name = args[0] if len(args) == 1 else str(Path.home())
+
+
+    def execute(self, inp: str, memory=None):
+        """Outputs current working directory
+        Args:
+            inp: Previous command output, ignored
+            memory: environment variables, ignored
+        Returns:
+            Exit code value
+        """
+        result = os.path.join(os.getcwd(), self.file_name)
+        if not os.path.isdir(result):
+            raise NotADirectoryError()
+        os.chdir(result)
+        self.stdout = ''
         self.stderr = ''
         self.return_code = SUCCESS_RETURN_CODE
         return self.return_code

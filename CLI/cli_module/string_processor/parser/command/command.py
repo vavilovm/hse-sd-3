@@ -113,21 +113,23 @@ class DeclareCommand(Command):
         return self.return_code
 
 
-def get_file_bytes(file_name, calling_command):
+def get_file_bytes(file_name, calling_command, cwd=os.getcwd()):
     """Reads bytes from file
     Args:
         file_name: target file name
         calling_command: command which called function
+        cwd: current working directory
     Returns:
         Tuple of read bytes, error message and exit code
     """
     read_bites = b''
     stderr = ''
     return_code = SUCCESS_RETURN_CODE
+    file_absolute_path = os.path.normpath(os.path.join(cwd, file_name))
     try:
-        if os.path.isdir(file_name):
+        if os.path.isdir(file_absolute_path):
             raise IsADirectoryError()
-        with open(file_name, 'rb') as file:
+        with open(file_absolute_path, 'rb') as file:
             read_bites = file.read()
     except FileNotFoundError:
         stderr = f'{calling_command}: {file_name}: No such file or directory'
@@ -166,13 +168,15 @@ class CatCommand(Command):
         Returns:
             Exit code value
         """
+        if memory is None:
+            raise ValueError('Did not get memory reference for CatCommand execution')
         self.stdout = ''
         self.stderr = ''
         if self.file_name is None:
             self.return_code = SUCCESS_RETURN_CODE
             self.stdout = inp
             return self.return_code
-        bs, self.stderr, self.return_code = get_file_bytes(self.file_name, 'cat')
+        bs, self.stderr, self.return_code = get_file_bytes(self.file_name, 'cat', memory.get_cwd())
         if self.return_code == SUCCESS_RETURN_CODE:
             self.stdout = bs.decode('utf-8')
         return self.return_code
@@ -235,7 +239,7 @@ class WcCommand(Command):
             n_bytes = len(inp.encode('utf-8'))
             string = inp
         else:
-            bs, self.stderr, self.return_code = get_file_bytes(self.file_name, 'wc')
+            bs, self.stderr, self.return_code = get_file_bytes(self.file_name, 'wc', memory.get_cwd())
             if self.return_code != SUCCESS_RETURN_CODE:
                 return self.return_code
             n_bytes = len(bs)
@@ -267,7 +271,7 @@ class PwdCommand(Command):
         Returns:
             Exit code value
         """
-        self.stdout = os.path.abspath(os.getcwd())
+        self.stdout = memory.get_cwd()
         self.stderr = ''
         self.return_code = SUCCESS_RETURN_CODE
         return self.return_code
@@ -295,10 +299,10 @@ class CdCommand(Command):
         Returns:
             Exit code value
         """
-        result = os.path.join(os.getcwd(), self.file_name)
+        result = os.path.normpath(os.path.join(memory.get_cwd(), self.file_name))
         if not os.path.isdir(result):
             raise NotADirectoryError(result + ' is not a valid directory')
-        os.chdir(result)
+        memory.set_cwd(result)
         self.stdout = ''
         self.stderr = ''
         self.return_code = SUCCESS_RETURN_CODE
@@ -317,7 +321,7 @@ class LsCommand(Command):
 
         if len(args) > 1:
             raise ValueError('Not more than one directory name can be provided as argument for CdCommand')
-        self.file_name = args[0] if len(args) == 1 else os.getcwd()
+        self.file_name = args[0] if len(args) == 1 else None
 
     def execute(self, inp: str, memory=None):
         """Outputs current working directory
@@ -327,10 +331,16 @@ class LsCommand(Command):
         Returns:
             Exit code value
         """
-        if not os.path.exists(self.file_name):
-            raise NotADirectoryError(self.file_name + ': No such file or directory')
-        if os.path.isdir(self.file_name):
-            dirs = os.listdir(self.file_name)
+        if memory is None:
+            raise ValueError('Did not get memory reference for LsCommand execution')
+        if self.file_name is None:
+            self.file_name = memory.get_cwd()
+        path = os.path.normpath(os.path.join(memory.get_cwd(), self.file_name))
+
+        if not os.path.exists(path):
+            raise NotADirectoryError(path + ': No such file or directory')
+        if os.path.isdir(path):
+            dirs = os.listdir(path)
             self.stdout = os.linesep.join(dirs)
         else:
             self.stdout = self.file_name
@@ -397,7 +407,7 @@ class OtherCommand(Command):
 
         try:
             out = subprocess.run(self.args + [inp] if len(inp) > 0 else self.args,
-                                 capture_output=True,
+                                 capture_output=True, cwd=memory.get_cwd(),
                                  env=memory.get_env(), shell=(os.name == 'nt'))
         except Exception as e:
             self.stdout = ''

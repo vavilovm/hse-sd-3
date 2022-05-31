@@ -272,6 +272,7 @@ class PwdCommand(Command):
         self.return_code = SUCCESS_RETURN_CODE
         return self.return_code
 
+
 class CdCommand(Command):
     """'cd' command class"""
 
@@ -286,7 +287,6 @@ class CdCommand(Command):
             raise ValueError('Not more than one directory name can be provided as argument for CdCommand')
         self.file_name = args[0] if len(args) == 1 else str(Path.home())
 
-
     def execute(self, inp: str, memory=None):
         """Outputs current working directory
         Args:
@@ -297,7 +297,7 @@ class CdCommand(Command):
         """
         result = os.path.join(os.getcwd(), self.file_name)
         if not os.path.isdir(result):
-            raise NotADirectoryError('given argument is not a valid directory')
+            raise NotADirectoryError(result + ' is not a valid directory')
         os.chdir(result)
         self.stdout = ''
         self.stderr = ''
@@ -327,10 +327,13 @@ class LsCommand(Command):
         Returns:
             Exit code value
         """
-        if not os.path.isdir(self.file_name):
-            raise NotADirectoryError('given argument is not a valid directory')
-        dirs = os.listdir(self.file_name)
-        self.stdout = os.linesep.join(dirs)
+        if not os.path.exists(self.file_name):
+            raise NotADirectoryError(self.file_name + ': No such file or directory')
+        if os.path.isdir(self.file_name):
+            dirs = os.listdir(self.file_name)
+            self.stdout = os.linesep.join(dirs)
+        else:
+            self.stdout = self.file_name
         self.stderr = ''
         self.return_code = SUCCESS_RETURN_CODE
         return self.return_code

@@ -205,6 +205,79 @@ class TestCommands(unittest.TestCase):
         self.assertEqual(cmd.get_stderr(), '')
         self.assertEqual(cmd.get_return_code(), SUCCESS_RETURN_CODE)
 
+    def test_cd(self):
+        cwd = os.getcwd()
+
+        cd = CdCommand(['test_dir'])
+        self.check_commands_common(cd)
+        cd.execute('test with one argument')
+        self.assertEqual(os.getcwd(), os.path.join(cwd, 'test_dir'))
+        self.assertEqual(cd.get_stdout(), '')
+        self.assertEqual(cd.get_stderr(), '')
+        self.assertEqual(cd.get_return_code(), SUCCESS_RETURN_CODE)
+        self.assertIn('dir1_file', os.listdir(None))
+        cwd1 = os.path.join(cwd, 'test_dir')
+
+        cd = CdCommand(['test_subdir'])
+        self.check_commands_common(cd)
+        cd.execute('test with one argument')
+        self.assertEqual(os.getcwd(), os.path.join(cwd1, 'test_subdir'))
+        self.assertEqual(cd.get_stdout(), '')
+        self.assertEqual(cd.get_stderr(), '')
+        self.assertEqual(cd.get_return_code(), SUCCESS_RETURN_CODE)
+        self.assertIn('subdir_file', os.listdir(None))
+
+        cd = CdCommand([])
+        self.check_commands_common(cd)
+        cd.execute('test with no args, switch to home dir by absolute path')
+        self.assertEqual(os.getcwd(), os.path.expanduser('~'))
+        self.assertEqual(cd.get_stdout(), '')
+        self.assertEqual(cd.get_stderr(), '')
+        self.assertEqual(cd.get_return_code(), SUCCESS_RETURN_CODE)
+
+        cd = CdCommand(['does not exist'])
+        self.check_commands_common(cd)
+        with self.assertRaises(NotADirectoryError):
+            cd.execute('test with non existing file')
+
+        with self.assertRaises(ValueError):
+            CdCommand(['1', '2'])
+
+        cd = CdCommand([cwd])
+        self.check_commands_common(cd)
+        cd.execute('test with absolute path arg, switch to start working dir')
+        self.assertEqual(os.getcwd(), cwd)
+        self.assertEqual(cd.get_stdout(), '')
+        self.assertEqual(cd.get_stderr(), '')
+        self.assertEqual(cd.get_return_code(), SUCCESS_RETURN_CODE)
+
+    def test_ls(self):
+        cwd = os.getcwd()
+        os.chdir('test_dir')
+
+        ls = LsCommand(['test_subdir'])
+        self.check_commands_common(ls)
+        ls.execute('test with one directory argument')
+        self.assertEqual(ls.get_stdout(), 'subdir_file')
+        self.assertEqual(ls.get_stderr(), '')
+        self.assertEqual(ls.get_return_code(), SUCCESS_RETURN_CODE)
+
+        ls = LsCommand([])
+        self.check_commands_common(ls)
+        ls.execute('test without arguments')
+        self.assertEqual(ls.get_stdout(), 'test_subdir' + os.linesep + 'dir1_file')
+        self.assertEqual(ls.get_stderr(), '')
+        self.assertEqual(ls.get_return_code(), SUCCESS_RETURN_CODE)
+
+        ls = LsCommand(['test_subdir' + os.sep + 'subdir_file'])
+        self.check_commands_common(ls)
+        ls.execute('test with one file argument')
+        self.assertEqual(ls.get_stdout(), 'test_subdir' + os.sep + 'subdir_file')
+        self.assertEqual(ls.get_stderr(), '')
+        self.assertEqual(ls.get_return_code(), SUCCESS_RETURN_CODE)
+
+        os.chdir(cwd)
+
     def test_exit(self):
         cmd = ExitCommand(['arg1', 'arg2'])
         self.check_commands_common(cmd)

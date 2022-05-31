@@ -272,7 +272,7 @@ class TestCommands(unittest.TestCase):
         self.check_commands_common(ls)
         ls.execute('test without arguments', memory)
         self.assertIn(ls.get_stdout(),
-                      {'test_subdir' + os.linesep + 'dir1_file', 'test_subdir' + os.linesep + 'dir1_file'})
+                      {'test_subdir' + os.linesep + 'dir1_file', 'dir1_file' + os.linesep + 'test_subdir'})
         self.assertEqual(ls.get_stderr(), '')
         self.assertEqual(ls.get_return_code(), SUCCESS_RETURN_CODE)
 

@@ -1,19 +1,26 @@
 import unittest
 
-from .string_processor.parser.command.command import *
 from .executor import Executor
+from .string_processor.parser.command.command import *
 
 
 class TestExecutor(unittest.TestCase):
     class Memory:
         def __init__(self):
             self.d = {}
+            self.cwd = os.getcwd()
 
         def set_value(self, name, val):
             self.d[name] = val
 
         def get_env(self):
             return self.d
+
+        def get_cwd(self):
+            return self.cwd
+
+        def set_cwd(self, path):
+            self.cwd = path
 
     def test_construction(self):
         exe = Executor()

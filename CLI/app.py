@@ -41,7 +41,7 @@ class MainApp:
                 try:
                     stdout, stderr = self.executor.execute(commands, self.memory)
                 except Exception as e:
-                    self.writer.print_outputs('', 'Failed to execute commands ' + str(e))
+                    self.writer.print_outputs('', 'Failed to execute commands: ' + str(e))
                     continue
                 self.writer.print_outputs(stdout, stderr)
         except Exception as e:

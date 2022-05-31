@@ -1,5 +1,6 @@
 import unittest
 
+from CLI.cli_module import Memory
 from .command import *
 
 
@@ -95,11 +96,11 @@ class TestCommands(unittest.TestCase):
         content2 = b'\n\a\0\xd0\xa9\x70'
         fn3 = 'file3'
         content3 = b''
-
+        memory = Memory()
         for content in [content1, content2, content3]:
             cmd = CatCommand([])
             self.check_commands_common(cmd)
-            cmd.execute(content.decode('utf-8'))
+            cmd.execute(content.decode('utf-8'), memory)
             self.assertEqual(cmd.get_stdout(), content.decode('utf-8'))
             self.assertEqual(cmd.get_stderr(), '')
             self.assertEqual(cmd.get_return_code(), SUCCESS_RETURN_CODE)
@@ -110,7 +111,7 @@ class TestCommands(unittest.TestCase):
 
             self.check_commands_common(cmd)
 
-            cmd.execute(f'input{i}')
+            cmd.execute(f'input{i}', memory)
             self.assertEqual(cmd.get_stdout(), content.decode('utf-8'))
             self.assertEqual(cmd.get_stderr(), '')
             self.assertEqual(cmd.get_return_code(), SUCCESS_RETURN_CODE)
@@ -120,14 +121,14 @@ class TestCommands(unittest.TestCase):
 
         no_file = 'no_such_file'
         cmd = CatCommand([no_file])
-        cmd.execute('some input')
+        cmd.execute('some input', memory)
         self.assertEqual(cmd.get_stdout(), '')
         self.assertEqual(cmd.get_return_code(), FAILED_FILE_OPEN_RETURN_CODE)
 
         direct = 'new_directory'
         os.mkdir(direct)
         cmd = CatCommand([direct])
-        cmd.execute('some input')
+        cmd.execute('some input', memory)
         self.assertEqual(cmd.get_stdout(), '')
         self.assertEqual(cmd.get_return_code(), FAILED_FILE_OPEN_RETURN_CODE)
         os.rmdir(direct)
@@ -159,7 +160,7 @@ class TestCommands(unittest.TestCase):
         fn4 = 'file4'
         content4 = b'\na\tb\nc\n\nd'
         ans4 = '{:6d} {:6d} {:6d}'.format(5, 4, len(content4))
-
+        memory = Memory()
         for content, ans in [(content1, ans1), (content2, ans2), (content3, ans3), (content4, ans4)]:
             cmd = WcCommand([])
             self.check_commands_common(cmd)
@@ -175,7 +176,7 @@ class TestCommands(unittest.TestCase):
 
             self.check_commands_common(cmd)
 
-            cmd.execute(f'input{i}')
+            cmd.execute(f'input{i}', memory)
             self.assertEqual(cmd.get_stdout(), ans)
             self.assertEqual(cmd.get_stderr(), '')
             self.assertEqual(cmd.get_return_code(), SUCCESS_RETURN_CODE)
@@ -185,25 +186,104 @@ class TestCommands(unittest.TestCase):
 
         no_file = 'no_such_file'
         cmd = WcCommand([no_file])
-        cmd.execute('some input')
+        cmd.execute('some input', memory)
         self.assertEqual(cmd.get_stdout(), '')
         self.assertEqual(cmd.get_return_code(), FAILED_FILE_OPEN_RETURN_CODE)
 
         direct = 'new_directory'
         os.mkdir(direct)
         cmd = WcCommand([direct])
-        cmd.execute('some input')
+        cmd.execute('some input', memory)
         self.assertEqual(cmd.get_stdout(), '')
         self.assertEqual(cmd.get_return_code(), FAILED_FILE_OPEN_RETURN_CODE)
         os.rmdir(direct)
 
     def test_pwd(self):
+        memory = Memory()
         cmd = PwdCommand(['arg1', 'arg2'])
         self.check_commands_common(cmd)
-        cmd.execute('some input')
+        cmd.execute('some input', memory)
         self.assertEqual(cmd.get_stdout(), os.getcwd())
         self.assertEqual(cmd.get_stderr(), '')
         self.assertEqual(cmd.get_return_code(), SUCCESS_RETURN_CODE)
+
+    def test_cd(self):
+        cwd = os.getcwd()
+        memory = Memory()
+
+        cd = CdCommand(['test_dir'])
+        self.check_commands_common(cd)
+        cd.execute('test with one argument', memory)
+        self.assertEqual(os.getcwd(), cwd)
+        self.assertEqual(memory.get_cwd(), os.path.join(cwd, 'test_dir'))
+        self.assertEqual(cd.get_stdout(), '')
+        self.assertEqual(cd.get_stderr(), '')
+        self.assertEqual(cd.get_return_code(), SUCCESS_RETURN_CODE)
+        self.assertIn('dir1_file', os.listdir(memory.get_cwd()))
+        cwd1 = os.path.join(cwd, 'test_dir')
+
+        cd = CdCommand(['test_subdir'])
+        self.check_commands_common(cd)
+        cd.execute('test with one argument', memory)
+        self.assertEqual(os.getcwd(), cwd)
+        self.assertEqual(memory.get_cwd(), os.path.join(cwd1, 'test_subdir'))
+        self.assertEqual(cd.get_stdout(), '')
+        self.assertEqual(cd.get_stderr(), '')
+        self.assertEqual(cd.get_return_code(), SUCCESS_RETURN_CODE)
+        self.assertIn('subdir_file', os.listdir(memory.get_cwd()))
+
+        cd = CdCommand([])
+        self.check_commands_common(cd)
+        cd.execute('test with no args, switch to home dir by absolute path', memory)
+        self.assertEqual(memory.get_cwd(), os.path.expanduser('~'))
+        self.assertEqual(cd.get_stdout(), '')
+        self.assertEqual(cd.get_stderr(), '')
+        self.assertEqual(cd.get_return_code(), SUCCESS_RETURN_CODE)
+
+        cd = CdCommand(['does not exist'])
+        self.check_commands_common(cd)
+        with self.assertRaises(NotADirectoryError):
+            cd.execute('test with non existing file', memory)
+
+        with self.assertRaises(ValueError):
+            CdCommand(['1', '2'])
+
+        cd = CdCommand([cwd])
+        self.check_commands_common(cd)
+        cd.execute('test with absolute path arg, switch to start working dir', memory)
+        self.assertEqual(memory.get_cwd(), cwd)
+        self.assertEqual(cd.get_stdout(), '')
+        self.assertEqual(cd.get_stderr(), '')
+        self.assertEqual(cd.get_return_code(), SUCCESS_RETURN_CODE)
+
+    def test_ls(self):
+        cwd = os.getcwd()
+        os.chdir('test_dir')
+        memory = Memory()
+
+        ls = LsCommand(['test_subdir'])
+        self.check_commands_common(ls)
+        ls.execute('test with one directory argument', memory)
+        self.assertEqual(ls.get_stdout(), 'subdir_file')
+        self.assertEqual(ls.get_stderr(), '')
+        self.assertEqual(ls.get_return_code(), SUCCESS_RETURN_CODE)
+
+        ls = LsCommand([])
+        self.check_commands_common(ls)
+        ls.execute('test without arguments', memory)
+        self.assertIn(ls.get_stdout(),
+                      {'test_subdir' + os.linesep + 'dir1_file', 'dir1_file' + os.linesep + 'test_subdir'})
+        self.assertEqual(ls.get_stderr(), '')
+        self.assertEqual(ls.get_return_code(), SUCCESS_RETURN_CODE)
+
+        ls = LsCommand(['test_subdir' + os.sep + 'subdir_file'])
+        self.check_commands_common(ls)
+        ls.execute('test with one file argument', memory)
+        self.assertEqual(ls.get_stdout(), 'test_subdir' + os.sep + 'subdir_file')
+        self.assertEqual(ls.get_stderr(), '')
+        self.assertEqual(ls.get_return_code(), SUCCESS_RETURN_CODE)
+
+        os.chdir(cwd)
 
     def test_exit(self):
         cmd = ExitCommand(['arg1', 'arg2'])
@@ -223,6 +303,9 @@ class TestCommands(unittest.TestCase):
 
             def get_env(self):
                 return self.d
+
+            def get_cwd(self):
+                return os.getcwd()
 
         mem = Memory()
 

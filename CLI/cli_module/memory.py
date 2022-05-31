@@ -30,6 +30,7 @@ class Memory(Mapping[str, str]):
 
     def __init__(self):
         self.data = dict(os.environ)
+        self.cwd = os.getcwd()
 
     def get_value(self, key):
         """Gets value for key
@@ -59,3 +60,19 @@ class Memory(Mapping[str, str]):
                 A dict with all variables
         """
         return self.data
+
+    def get_cwd(self):
+        """Gets current working directory
+
+            Returns:
+                A str path
+        """
+        return self.cwd
+
+    def set_cwd(self, cwd):
+        """Sets current working directory
+
+            Args:
+                cwd: A str for path
+        """
+        self.cwd = cwd
